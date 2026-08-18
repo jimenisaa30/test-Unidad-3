@@ -62,7 +62,7 @@ function button(parent, label, onClick) {
   return b;
 }
 
-export function createLabPanel({ params, onReset, onPreset, onModeChange, onPauseChange }) {
+export function createLabPanel({ params, onReset, onPreset, onModeChange, onPauseChange, onGravityDrop }) {
   const refreshers = [];
   const panel = document.createElement('aside');
   panel.className = 'panel';
@@ -111,8 +111,6 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
   tests.innerHTML = '<h2>Pruebas de comportamiento</h2><p>Antes de pulsar una prueba, predice qué debería ocurrir.</p>';
   panel.append(tests);
   for (const [id, label] of [
-    ['inertia', '1 · Inercia'],
-    ['wind', '2 · Fuerza constante +X'],
     ['attract', '3 · Atracción'],
     ['repel', '4 · Repulsión'],
     ['vortex', '5 · Vórtice']
@@ -123,6 +121,7 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
   actions.innerHTML = '<h2>Acciones</h2>';
   panel.append(actions);
   button(actions, 'Reset', onReset);
+  button(actions, 'Caída libre (gravedad máxima)', () => onGravityDrop?.());
   button(actions, 'Pausar / continuar', () => onPauseChange());
   button(actions, 'LAB / PERFORMANCE', () => onModeChange());
 

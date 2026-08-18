@@ -76,12 +76,7 @@ async function main() {
     params.wind.value.set(0, 0, 0);
     params.initialSpeed.value = 0;
 
-    if (id === 'inertia') {
-      params.initialSpeed.value = 0.8;
-    } else if (id === 'wind') {
-      params.windEnabled.value = 1;
-      params.wind.value.set(1.5, 0, 0);
-    } else if (id === 'attract') {
+    if (id === 'attract') {
       params.radialEnabled.value = 1;
       params.radialStrength.value = 3.0;
     } else if (id === 'repel') {
@@ -99,6 +94,17 @@ async function main() {
     panel?.refresh();
   };
 
+  const applyGravityDrop = () => {
+    params.windEnabled.value = 1;
+    params.wind.value.set(0, -12.0, 0);
+    params.radialEnabled.value = 0;
+    params.vortexEnabled.value = 0;
+    params.dragEnabled.value = 0;
+    params.initialSpeed.value = 0;
+    simulation.reset();
+    panel?.refresh();
+  };
+
   const setMode = (next) => {
     mode = next;
     const lab = mode === 'LAB';
@@ -107,7 +113,7 @@ async function main() {
     attractorHelper.visible = lab;
     orbit.enabled = lab;
     hud.innerHTML = lab
-      ? '<strong>LAB</strong> · P: performance · R: reset · 1–5: pruebas'
+      ? '<strong>LAB</strong> · P: performance · R: reset · 3–5: pruebas'
       : '<strong>PERFORMANCE</strong> · P: lab · espacio: invertir radial · puntero: atractor';
   };
 
@@ -116,7 +122,8 @@ async function main() {
     onReset: () => simulation.reset(),
     onPreset: applyPreset,
     onModeChange: () => setMode(mode === 'LAB' ? 'PERFORMANCE' : 'LAB'),
-    onPauseChange: () => paused = !paused
+    onPauseChange: () => paused = !paused,
+    onGravityDrop: applyGravityDrop
   });
 
   const hud = document.createElement('div');
@@ -130,8 +137,6 @@ async function main() {
     if (event.repeat) return;
     if (event.code === 'KeyP') setMode(mode === 'LAB' ? 'PERFORMANCE' : 'LAB');
     if (event.code === 'KeyR') simulation.reset();
-    if (event.code === 'Digit1') applyPreset('inertia');
-    if (event.code === 'Digit2') applyPreset('wind');
     if (event.code === 'Digit3') applyPreset('attract');
     if (event.code === 'Digit4') applyPreset('repel');
     if (event.code === 'Digit5') applyPreset('vortex');

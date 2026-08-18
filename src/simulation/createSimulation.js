@@ -101,8 +101,8 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   material.colorNode = Fn(() => {
     const speed = velocityBuffer.toAttribute().length();
     const t = speed.div(params.maxSpeed).clamp(0.0, 1.0);
-    const slow = color('#46a6ff');
-    const fast = color('#ffb35a');
+    const slow = color('#ff7ac6');
+    const fast = color('#5ab2ff');
     return vec4(mix(slow, fast, t), 1.0);
   })();
 
