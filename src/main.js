@@ -147,6 +147,32 @@ async function main() {
       params.radialEnabled.value = 1;
       params.radialStrength.value = -savedRadialStrength;
     }
+
+    // R key: adjust radial strength with + and - keys
+    if (event.code === 'KeyR') {
+      params.radialEnabled.value = params.radialEnabled.value > 0 ? 0 : 1;
+      panel?.refresh();
+    }
+
+    // + key: increase drag coefficient
+    if (event.code === 'Equal' || event.code === 'NumpadAdd') {
+      event.preventDefault();
+      params.dragCoefficient.value = Math.min(1, params.dragCoefficient.value + 0.05);
+      panel?.refresh();
+    }
+
+    // - key: decrease drag coefficient
+    if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
+      event.preventDefault();
+      params.dragCoefficient.value = Math.max(0, params.dragCoefficient.value - 0.05);
+      panel?.refresh();
+    }
+
+    // D key: toggle drag on/off
+    if (event.code === 'KeyD') {
+      params.dragEnabled.value = params.dragEnabled.value > 0 ? 0 : 1;
+      panel?.refresh();
+    }
   });
 
   addEventListener('keyup', (event) => {
