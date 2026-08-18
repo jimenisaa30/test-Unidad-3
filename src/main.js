@@ -136,7 +136,7 @@ async function main() {
   addEventListener('keydown', (event) => {
     if (event.repeat) return;
     if (event.code === 'KeyP') setMode(mode === 'LAB' ? 'PERFORMANCE' : 'LAB');
-    if (event.code === 'KeyR') simulation.reset();
+    if (event.code === 'KeyE') simulation.reset();
     if (event.code === 'Digit3') applyPreset('attract');
     if (event.code === 'Digit4') applyPreset('repel');
     if (event.code === 'Digit5') applyPreset('vortex');
@@ -148,7 +148,7 @@ async function main() {
       params.radialStrength.value = -savedRadialStrength;
     }
 
-    // R key: adjust radial strength with + and - keys
+    // R key: toggle radial force on/off
     if (event.code === 'KeyR') {
       params.radialEnabled.value = params.radialEnabled.value > 0 ? 0 : 1;
       panel?.refresh();
@@ -172,6 +172,11 @@ async function main() {
     if (event.code === 'KeyD') {
       params.dragEnabled.value = params.dragEnabled.value > 0 ? 0 : 1;
       panel?.refresh();
+    }
+
+    // G key: apply gravity drop
+    if (event.code === 'KeyG') {
+      applyGravityDrop();
     }
   });
 
