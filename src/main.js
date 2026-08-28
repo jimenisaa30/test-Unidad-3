@@ -139,6 +139,7 @@ async function main() {
     axes.visible = lab;
     attractorHelper.visible = lab;
     orbit.enabled = lab;
+    document.body.classList.toggle('performance', !lab);
     hud.innerHTML = lab
       ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Mouse: centro del vórtice · Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 velocidad · 5 potencia · 6 forma · C paleta · Espacio pulso'
       : '<strong>PERFORMANCE</strong> · Mouse: vórtice · Q/W/E/R/T fuerzas · 1–5 parámetros · 6 forma · C paleta · Espacio pulso · P interfaz';

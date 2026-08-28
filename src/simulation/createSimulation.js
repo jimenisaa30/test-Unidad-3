@@ -97,7 +97,7 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
 
     const dt = params.dt.mul(params.timeScale);
     const force = vec3(0.0).toVar();
-    const pulseGain = params.pulse.mul(2.4).add(1.0);
+    const pulseGain = params.pulse.mul(5.5).add(1.0);
 
     // 1) CONSTANT / WIND FORCE
     force.addAssign(params.wind.mul(params.windEnabled).mul(params.forceScale).mul(pulseGain));
