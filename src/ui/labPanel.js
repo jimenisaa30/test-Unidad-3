@@ -62,7 +62,7 @@ function button(parent, label, onClick) {
   return b;
 }
 
-export function createLabPanel({ params, onReset, onPreset, onModeChange, onPauseChange, onGravityDrop }) {
+export function createLabPanel({ params, onReset, onPreset, onModeChange, onPauseChange, onGravityDrop, onShape }) {
   const refreshers = [];
   const panel = document.createElement('aside');
   panel.className = 'panel';
@@ -112,14 +112,22 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
   refreshers.push(rangeRow(force, 'wind.x', state, 'windX', -4, 4, 0.05, (v) => params.wind.value.x = v, () => params.wind.value.x));
   refreshers.push(rangeRow(force, 'wind.y', state, 'windY', -4, 4, 0.05, (v) => params.wind.value.y = v, () => params.wind.value.y));
 
+  const mandalas = document.createElement('div');
+  mandalas.className = 'group';
+  mandalas.innerHTML = '<h2>Mandalas</h2><p>Cada forma está compuesta por miles de partículas. La transición conserva el movimiento.</p>';
+  panel.append(mandalas);
+  button(mandalas, 'Espiral', () => onShape?.(0));
+  button(mandalas, 'Estrella', () => onShape?.(1));
+  button(mandalas, 'Corazón', () => onShape?.(2));
+
   const tests = document.createElement('div');
   tests.className = 'group';
-  tests.innerHTML = '<h2>Pruebas de comportamiento</h2><p>Antes de pulsar una prueba, predice qué debería ocurrir.</p>';
+  tests.innerHTML = '<h2>Fuerzas aisladas</h2><p>Úsalas para observar una fuerza por vez antes de combinarlas con Q, W, E, R y T.</p>';
   panel.append(tests);
   for (const [id, label] of [
-    ['attract', '3 · Atracción'],
-    ['repel', '4 · Repulsión'],
-    ['vortex', '5 · Vórtice']
+    ['attract', 'Atracción'],
+    ['repel', 'Repulsión'],
+    ['vortex', 'Vórtice']
   ]) button(tests, label, () => onPreset(id));
 
   const actions = document.createElement('div');

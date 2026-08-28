@@ -67,12 +67,8 @@ async function main() {
   let mode = 'LAB';
   let panel;
   let savedRadialStrength = params.radialStrength.value;
-  const palettes = [
-    ['#12051d', '#ff2b9a', '#50e6ff'],
-    ['#071b27', '#f5e742', '#ff5c35'],
-    ['#19102d', '#bd7bff', '#7affc4'],
-    ['#250b10', '#ff786a', '#ffe56b']
-  ];
+  let shapeTransitioning = false;
+  const backgrounds = ['#12051d', '#071b27', '#19102d', '#250b10', '#052028', '#1d1404'];
   const controlLevels = {
     radius: [0.15, 0.3, 0.55, 0.9, 1.3], size: [0.016, 0.028, 0.04, 0.058, 0.08],
     drag: [0.03, 0.08, 0.15, 0.25, 0.38], particles: [16384, 32768, 65536, 98304, 131072],
@@ -92,24 +88,24 @@ async function main() {
   };
 
   const randomPalette = () => {
-    const [background, slow, fast] = palettes[Math.floor(Math.random() * palettes.length)];
+    const background = backgrounds[Math.floor(Math.random() * backgrounds.length)];
     scene.background.set(background);
-    params.colorSlow.value.set(slow);
-    params.colorFast.value.set(fast);
-    document.documentElement.style.setProperty('--accent', slow);
-    document.documentElement.style.setProperty('--accent-cool', fast);
+    params.colorShift.value = Math.random() * Math.PI * 2;
+    document.documentElement.style.setProperty('--accent', `hsl(${Math.floor(Math.random() * 360)} 95% 62%)`);
   };
 
   const updateHud = () => {
     const form = ['ESPIRAL', 'ESTRELLA', 'CORAZÓN'][params.shapeMode.value];
     hud.innerHTML = mode === 'LAB'
-      ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 partículas · 5 potencia · 8 forma · C color · P performance'
-      : `<strong>PERFORMANCE · ${form}</strong><br>Q/W/E/R/T fuerzas · 1–5 parámetros · 8 forma · C paleta · P interfaz`;
+      ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Mouse: atractor invisible · Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 partículas · 5 potencia · 8 forma · C color · P performance'
+      : `<strong>PERFORMANCE · ${form}</strong><br>Mouse: vórtice invisible · Q/W/E/R/T fuerzas · 1–5 parámetros · 8 forma · C paleta · P interfaz`;
   };
 
   const setShape = (shape) => {
     params.shapeMode.value = shape;
-    simulation.reset();
+    params.shapeBlend.value = 0;
+    simulation.setShapeTarget();
+    shapeTransitioning = true;
     updateHud();
   };
 
@@ -155,7 +151,8 @@ async function main() {
     const lab = mode === 'LAB';
     panel.setVisible(lab);
     axes.visible = lab;
-    attractorHelper.visible = lab;
+    // The pointer remains active, but its helper never interrupts the image.
+    attractorHelper.visible = false;
     orbit.enabled = lab;
     updateHud();
   };
@@ -166,7 +163,8 @@ async function main() {
     onPreset: applyPreset,
     onModeChange: () => setMode(mode === 'LAB' ? 'PERFORMANCE' : 'LAB'),
     onPauseChange: () => paused = !paused,
-    onGravityDrop: applyGravityDrop
+    onGravityDrop: applyGravityDrop,
+    onShape: setShape
   });
 
   const hud = document.createElement('div');
@@ -237,6 +235,14 @@ async function main() {
 
   // FRAME LOOP ------------------------------------------------------------
   renderer.setAnimationLoop(() => {
+    if (shapeTransitioning) {
+      params.shapeBlend.value = Math.min(1, params.shapeBlend.value + 1 / 150);
+      if (params.shapeBlend.value >= 1) {
+        simulation.commitShapeTarget();
+        params.shapeBlend.value = 0;
+        shapeTransitioning = false;
+      }
+    }
     if (!paused) simulation.stepSimulation();
     orbit.update();
     renderer.render(scene, camera);
