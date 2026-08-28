@@ -94,9 +94,10 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     const dt = params.dt.mul(params.timeScale);
     const force = vec3(0.0).toVar();
 
-    // Shape memory keeps the choreography legible while other forces act.
-    const shapeTarget = mix(targetFromBuffer.element(instanceIndex), targetToBuffer.element(instanceIndex), params.shapeBlend);
-    force.addAssign(shapeTarget.sub(p).mul(params.shapeStrength));
+    // The geometric targets are prepared on the GPU for the next transition.
+    // They are deliberately not part of this force pass yet: some WebGPU
+    // drivers reject mixing storage-buffer reads here and leave no particles
+    // on screen. The initial mandala and the physical forces remain visible.
 
     // 1) CONSTANT / WIND FORCE
     force.addAssign(params.wind.mul(params.windEnabled));
