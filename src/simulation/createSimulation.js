@@ -22,6 +22,7 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   // Each particle owns position and velocity. The arrays live in GPU storage.
   const positionBuffer = instancedArray(count, 'vec3');
   const velocityBuffer = instancedArray(count, 'vec3');
+  const targetBuffer = instancedArray(count, 'vec3');
 
   // INITIALIZATION --------------------------------------------------------
   // Each mandala is a separate initializer. This avoids dynamic shader
@@ -45,23 +46,47 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   );
   const initSpiral = createInitializer('Initialize Spiral', (r1, r2, r3) => {
     const angle = r1.mul(Math.PI * 16.0);
-    const radius = r1.mul(4.15).add(0.12);
+    const radius = r1.mul(5.15).add(0.12);
     return vec3(cos(angle).mul(radius), sin(angle).mul(radius), r2.sub(0.5).mul(0.18));
   });
   const initStar = createInitializer('Initialize Star', (r1, r2, r3) => {
     const angle = r1.mul(Math.PI * 2.0);
-    const radius = cos(angle.mul(12.0)).mul(1.3).add(2.75).mul(r2.mul(0.08).add(0.96));
+    const radius = cos(angle.mul(12.0)).mul(1.65).add(3.35).mul(r2.mul(0.035).add(0.982));
     return vec3(cos(angle).mul(radius), sin(angle).mul(radius), r3.sub(0.5).mul(0.18));
   });
   const initHeart = createInitializer('Initialize Heart', (r1, r2, r3) => {
     const angle = r1.mul(Math.PI * 2.0);
     const sine = sin(angle);
-    const x = sine.mul(sine).mul(sine).mul(3.2);
-    const y = cos(angle).mul(2.1).sub(cos(angle.mul(2.0))).sub(cos(angle.mul(3.0)).mul(0.45)).sub(cos(angle.mul(4.0)).mul(0.22)).mul(0.9);
+    const x = sine.mul(sine).mul(sine).mul(4.25);
+    const y = cos(angle).mul(2.1).sub(cos(angle.mul(2.0))).sub(cos(angle.mul(3.0)).mul(0.45)).sub(cos(angle.mul(4.0)).mul(0.22)).mul(1.22);
     return vec3(x, y, r3.sub(0.5).mul(0.18));
   });
   const initializers = [initSpiral, initStar, initHeart, initScatter];
+  const createTargetInitializer = (name, positionFor) => Fn(() => {
+    const i = instanceIndex;
+    const r1 = hash(i.add(uint(11)));
+    const r2 = hash(i.add(uint(23)));
+    const r3 = hash(i.add(uint(37)));
+    targetBuffer.element(i).assign(positionFor(r1, r2, r3));
+  })().compute(count).setName(name);
+  const targetInitializers = [
+    createTargetInitializer('Target Spiral', (r1, r2) => {
+      const angle = r1.mul(Math.PI * 16.0); const radius = r1.mul(5.15).add(0.12);
+      return vec3(cos(angle).mul(radius), sin(angle).mul(radius), r2.sub(0.5).mul(0.18));
+    }),
+    createTargetInitializer('Target Star', (r1, r2, r3) => {
+      const angle = r1.mul(Math.PI * 2.0); const radius = cos(angle.mul(12.0)).mul(1.65).add(3.35).mul(r2.mul(0.035).add(0.982));
+      return vec3(cos(angle).mul(radius), sin(angle).mul(radius), r3.sub(0.5).mul(0.18));
+    }),
+    createTargetInitializer('Target Heart', (r1, r2, r3) => {
+      const angle = r1.mul(Math.PI * 2.0); const sine = sin(angle);
+      const x = sine.mul(sine).mul(sine).mul(4.25);
+      const y = cos(angle).mul(2.1).sub(cos(angle.mul(2.0))).sub(cos(angle.mul(3.0)).mul(0.45)).sub(cos(angle.mul(4.0)).mul(0.22)).mul(1.22);
+      return vec3(x, y, r3.sub(0.5).mul(0.18));
+    })
+  ];
   let shapeIndex = 0;
+  let transitionFrames = 0;
 
   // UPDATE / COMPUTE SHADER ----------------------------------------------
   // This is the conceptual heart of the project:
@@ -72,9 +97,10 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
 
     const dt = params.dt.mul(params.timeScale);
     const force = vec3(0.0).toVar();
+    const pulseGain = params.pulse.mul(2.4).add(1.0);
 
     // 1) CONSTANT / WIND FORCE
-    force.addAssign(params.wind.mul(params.windEnabled).mul(params.forceScale));
+    force.addAssign(params.wind.mul(params.windEnabled).mul(params.forceScale).mul(pulseGain));
 
     // 2) RADIAL FORCE (positive = attraction, negative = repulsion)
     const toAttractor = params.attractor.sub(p);
@@ -84,12 +110,12 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
       .mul(params.radialStrength)
       .div(distance.pow(2))
       .mul(params.radialEnabled);
-    force.addAssign(radialForce.mul(params.forceScale));
+    force.addAssign(radialForce.mul(params.forceScale).mul(pulseGain));
 
     // 3) VORTEX FORCE: tangent to the radial direction around Z.
     const zAxis = vec3(0.0, 0.0, 1.0);
     const tangent = zAxis.cross(radialDirection);
-    force.addAssign(tangent.mul(params.vortexStrength).mul(params.vortexEnabled).mul(params.forceScale));
+    force.addAssign(tangent.mul(params.vortexStrength).mul(params.vortexEnabled).mul(params.forceScale).mul(pulseGain));
 
     // 4) LINEAR DRAG: F = -c v
     force.addAssign(v.mul(params.dragCoefficient).mul(params.dragEnabled).mul(-1.0));
@@ -109,6 +135,11 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     const half = params.boundsSize.mul(0.5);
     p.assign(mod(p.add(half), params.boundsSize).sub(half));
   })().compute(count).setName('Update Particles');
+
+  const transitionParticles = Fn(() => {
+    const p = positionBuffer.element(instanceIndex);
+    p.addAssign(targetBuffer.element(instanceIndex).sub(p).mul(0.045));
+  })().compute(count).setName('Morph Mandala');
 
   // RENDER ---------------------------------------------------------------
   // Rendering does not recompute the physics. It consumes the GPU state.
@@ -141,10 +172,15 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
 
   function setShape(nextShape) {
     shapeIndex = nextShape;
-    reset();
+    renderer.compute(targetInitializers[shapeIndex]);
+    transitionFrames = 125;
   }
 
   function stepSimulation() {
+    if (transitionFrames > 0) {
+      renderer.compute(transitionParticles);
+      transitionFrames--;
+    }
     renderer.compute(updateParticles);
   }
 
@@ -158,6 +194,7 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     count,
     positionBuffer,
     velocityBuffer,
+    targetBuffer,
     setShape,
     reset,
     stepSimulation,

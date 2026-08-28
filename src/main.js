@@ -46,6 +46,23 @@ async function main() {
   const axes = new THREE.AxesHelper(1.5);
   scene.add(axes);
 
+  // The pointer sets the live center for attraction and vortex. The marker is
+  // shown in LAB only, so PERFORMANCE remains visually clean.
+  const pointerNdc = new THREE.Vector2();
+  const raycaster = new THREE.Raycaster();
+  const interactionPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const hit = new THREE.Vector3();
+  addEventListener('pointermove', (event) => {
+    pointerNdc.x = (event.clientX / innerWidth) * 2 - 1;
+    pointerNdc.y = -(event.clientY / innerHeight) * 2 + 1;
+    raycaster.setFromCamera(pointerNdc, camera);
+    if (raycaster.ray.intersectPlane(interactionPlane, hit)) {
+      params.attractor.value.copy(hit);
+      attractorHelper.position.copy(hit);
+      params.pulse.value = 1;
+    }
+  });
+
   let paused = false;
   let mode = 'LAB';
   let panel;
@@ -123,8 +140,8 @@ async function main() {
     attractorHelper.visible = lab;
     orbit.enabled = lab;
     hud.innerHTML = lab
-      ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 velocidad · 5 potencia · 8 forma · C paleta · Enter reinicia'
-      : '<strong>PERFORMANCE</strong> · Q/W/E/R/T fuerzas · 1–5 parámetros · 8 forma · C paleta · P interfaz';
+      ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Mouse: centro del vórtice · Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 velocidad · 5 potencia · 6 forma · C paleta · Espacio pulso'
+      : '<strong>PERFORMANCE</strong> · Mouse: vórtice · Q/W/E/R/T fuerzas · 1–5 parámetros · 6 forma · C paleta · Espacio pulso · P interfaz';
   };
 
   panel = createLabPanel({
@@ -151,14 +168,15 @@ async function main() {
     if (event.code === 'Digit3') cycle('air');
     if (event.code === 'Digit4') cycle('speed');
     if (event.code === 'Digit5') cycle('power');
-    if (event.code === 'Digit8') { shapeIndex = (shapeIndex + 1) % 3; simulation.setShape(shapeIndex); }
+    if (event.code === 'Digit6') { shapeIndex = (shapeIndex + 1) % 3; simulation.setShape(shapeIndex); }
     if (event.code === 'Enter') simulation.reset();
+    if (event.code === 'Space') { event.preventDefault(); params.pulse.value = 1; }
 
-    if (event.code === 'KeyQ') { params.windEnabled.value = params.windEnabled.value > 0 ? 0 : 1; params.wind.value.set(0, -1.1, 0); }
-    if (event.code === 'KeyW') { params.radialEnabled.value = 1; params.radialStrength.value = -1.4; }
-    if (event.code === 'KeyE') { params.radialEnabled.value = 1; params.radialStrength.value = 1.4; }
-    if (event.code === 'KeyR') params.vortexEnabled.value = params.vortexEnabled.value > 0 ? 0 : 1;
-    if (event.code === 'KeyT') params.dragEnabled.value = params.dragEnabled.value > 0 ? 0 : 1;
+    if (event.code === 'KeyQ') { params.windEnabled.value = params.windEnabled.value > 0 ? 0 : 1; params.wind.value.set(0, -1.1, 0); params.pulse.value = 1; }
+    if (event.code === 'KeyW') { params.radialEnabled.value = 1; params.radialStrength.value = -1.4; params.pulse.value = 1; }
+    if (event.code === 'KeyE') { params.radialEnabled.value = 1; params.radialStrength.value = 1.4; params.pulse.value = 1; }
+    if (event.code === 'KeyR') { params.vortexEnabled.value = params.vortexEnabled.value > 0 ? 0 : 1; params.pulse.value = 1; }
+    if (event.code === 'KeyT') { params.dragEnabled.value = params.dragEnabled.value > 0 ? 0 : 1; params.pulse.value = 1; }
     panel?.refresh();
   });
 
@@ -172,6 +190,7 @@ async function main() {
 
   // FRAME LOOP ------------------------------------------------------------
   renderer.setAnimationLoop(() => {
+    params.pulse.value *= 0.94;
     if (!paused) simulation.stepSimulation();
     orbit.update();
     renderer.render(scene, camera);
