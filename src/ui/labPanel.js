@@ -67,8 +67,8 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
   const panel = document.createElement('aside');
   panel.className = 'panel';
   panel.innerHTML = `
-    <h1>U3 · Forces Instrument</h1>
-    <p>LAB: aísla fuerzas, predice y prueba. <strong>P</strong> cambia a PERFORMANCE.</p>
+    <h1>Geometrías en fuerza</h1>
+    <p>Un instrumento de coreografías geométricas. <strong>P</strong> oculta la interfaz para PERFORMANCE.</p>
   `;
 
   const sim = document.createElement('div');
@@ -80,6 +80,9 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
     timeScale: params.timeScale.value,
     maxSpeed: params.maxSpeed.value,
     particleSize: params.particleSize.value,
+    activeCount: params.activeCount.value,
+    softening: params.softening.value,
+    forceScale: params.forceScale.value,
     radialStrength: params.radialStrength.value,
     vortexStrength: params.vortexStrength.value,
     dragCoefficient: params.dragCoefficient.value,
@@ -90,6 +93,7 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
   refreshers.push(rangeRow(sim, 'timeScale', state, 'timeScale', 0, 2, 0.01, (v) => params.timeScale.value = v, () => params.timeScale.value));
   refreshers.push(rangeRow(sim, 'maxSpeed', state, 'maxSpeed', 0.2, 12, 0.1, (v) => params.maxSpeed.value = v, () => params.maxSpeed.value));
   refreshers.push(rangeRow(sim, 'particleSize', state, 'particleSize', 0.005, 0.1, 0.001, (v) => params.particleSize.value = v, () => params.particleSize.value));
+  refreshers.push(rangeRow(sim, 'partículas visibles', state, 'activeCount', 16384, 131072, 16384, (v) => params.activeCount.value = v, () => params.activeCount.value));
 
   const force = document.createElement('div');
   force.className = 'group';
@@ -98,6 +102,8 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
 
   refreshers.push(checkRow(force, 'Radial', params.radialEnabled.value > 0, (v) => params.radialEnabled.value = v ? 1 : 0, () => params.radialEnabled.value > 0));
   refreshers.push(rangeRow(force, 'radialStrength', state, 'radialStrength', -8, 8, 0.05, (v) => params.radialStrength.value = v, () => params.radialStrength.value));
+  refreshers.push(rangeRow(force, 'radio de influencia', state, 'softening', 0.1, 1.5, 0.05, (v) => params.softening.value = v, () => params.softening.value));
+  refreshers.push(rangeRow(force, 'potencia global', state, 'forceScale', 0.2, 3, 0.05, (v) => params.forceScale.value = v, () => params.forceScale.value));
   refreshers.push(checkRow(force, 'Vórtice', params.vortexEnabled.value > 0, (v) => params.vortexEnabled.value = v ? 1 : 0, () => params.vortexEnabled.value > 0));
   refreshers.push(rangeRow(force, 'vortexStrength', state, 'vortexStrength', -8, 8, 0.05, (v) => params.vortexStrength.value = v, () => params.vortexStrength.value));
   refreshers.push(checkRow(force, 'Drag', params.dragEnabled.value > 0, (v) => params.dragEnabled.value = v ? 1 : 0, () => params.dragEnabled.value > 0));
@@ -118,7 +124,7 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
 
   const actions = document.createElement('div');
   actions.className = 'group';
-  actions.innerHTML = '<h2>Acciones</h2>';
+  actions.innerHTML = '<h2>Teclado performativo</h2><p>Q gravedad · W repulsión · E atracción · R vórtice · T aire.<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 cantidad · 5 potencia · 8 forma · C paleta.</p>';
   panel.append(actions);
   button(actions, 'Reset', onReset);
   button(actions, 'Caída libre (gravedad máxima)', () => onGravityDrop?.());

@@ -11,6 +11,12 @@ export function createParameters() {
     maxSpeed: uniform(5.0),
     boundsSize: uniform(10.0),
     particleSize: uniform(0.035),
+    activeCount: uniform(131072.0),
+    shapeMode: uniform(0.0),
+    shapeStrength: uniform(2.4),
+    forceScale: uniform(1.0),
+    colorSlow: uniform(new THREE.Color('#ff2b9a')),
+    colorFast: uniform(new THREE.Color('#50e6ff')),
 
     windEnabled: uniform(0.0),
     wind: uniform(new THREE.Vector3(0.0, 0.0, 0.0)),

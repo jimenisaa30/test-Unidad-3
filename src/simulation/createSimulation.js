@@ -9,6 +9,9 @@ import {
   max,
   mix,
   mod,
+  cos,
+  sin,
+  select,
   step,
   uint,
   uv,
@@ -21,6 +24,7 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   // Each particle owns position and velocity. The arrays live in GPU storage.
   const positionBuffer = instancedArray(count, 'vec3');
   const velocityBuffer = instancedArray(count, 'vec3');
+  const targetBuffer = instancedArray(count, 'vec3');
 
   // INITIALIZATION --------------------------------------------------------
   // A compute pass writes the initial state for every particle in parallel.
@@ -28,6 +32,7 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     const i = instanceIndex;
     const p = positionBuffer.element(i);
     const v = velocityBuffer.element(i);
+    const target = targetBuffer.element(i);
 
     const r1 = hash(i.add(uint(11)));
     const r2 = hash(i.add(uint(23)));
@@ -36,7 +41,20 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     const r5 = hash(i.add(uint(71)));
     const r6 = hash(i.add(uint(89)));
 
-    p.assign(vec3(r1, r2, r3).sub(0.5).mul(params.boundsSize.mul(0.45)));
+    const angle = r1.mul(Math.PI * 2.0);
+    const spiralAngle = r1.mul(Math.PI * 12.0);
+    const spiralRadius = r1.mul(4.3);
+    const spiral = vec3(cos(spiralAngle).mul(spiralRadius), sin(spiralAngle).mul(spiralRadius), r2.sub(0.5).mul(0.35));
+    const starRadius = cos(angle.mul(5.0)).mul(1.45).add(3.0).mul(r2.mul(0.55).add(0.45));
+    const star = vec3(cos(angle).mul(starRadius), sin(angle).mul(starRadius), r3.sub(0.5).mul(0.3));
+    const heart = vec3(
+      sin(angle).pow(3.0).mul(3.2),
+      cos(angle).mul(2.1).sub(cos(angle.mul(2.0))).sub(cos(angle.mul(3.0)).mul(0.45)).sub(cos(angle.mul(4.0)).mul(0.22)).mul(0.9),
+      r3.sub(0.5).mul(0.25)
+    );
+    const initialPosition = select(params.shapeMode.equal(2.0), heart, select(params.shapeMode.equal(1.0), star, spiral));
+    p.assign(initialPosition);
+    target.assign(initialPosition);
     v.assign(vec3(r4, r5, r6).sub(0.5).mul(params.initialSpeed));
   })().compute(count).setName('Initialize Particles');
 
@@ -50,6 +68,9 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     const dt = params.dt.mul(params.timeScale);
     const force = vec3(0.0).toVar();
 
+    // Shape memory keeps the choreography legible while other forces act.
+    force.addAssign(targetBuffer.element(instanceIndex).sub(p).mul(params.shapeStrength));
+
     // 1) CONSTANT / WIND FORCE
     force.addAssign(params.wind.mul(params.windEnabled));
 
@@ -61,12 +82,12 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
       .mul(params.radialStrength)
       .div(distance.pow(2))
       .mul(params.radialEnabled);
-    force.addAssign(radialForce);
+    force.addAssign(radialForce.mul(params.forceScale));
 
     // 3) VORTEX FORCE: tangent to the radial direction around Z.
     const zAxis = vec3(0.0, 0.0, 1.0);
     const tangent = zAxis.cross(radialDirection);
-    force.addAssign(tangent.mul(params.vortexStrength).mul(params.vortexEnabled));
+    force.addAssign(tangent.mul(params.vortexStrength).mul(params.vortexEnabled).mul(params.forceScale));
 
     // 4) LINEAR DRAG: F = -c v
     force.addAssign(v.mul(params.dragCoefficient).mul(params.dragEnabled).mul(-1.0));
@@ -101,13 +122,11 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   material.colorNode = Fn(() => {
     const speed = velocityBuffer.toAttribute().length();
     const t = speed.div(params.maxSpeed).clamp(0.0, 1.0);
-    const slow = color('#ff7ac6');
-    const fast = color('#5ab2ff');
-    return vec4(mix(slow, fast, t), 1.0);
+    return vec4(mix(params.colorSlow, params.colorFast, t), 1.0);
   })();
 
   // Circular sprite mask, avoiding visible square planes.
-  material.opacityNode = step(uv().xy.sub(0.5).length(), 0.5);
+  material.opacityNode = step(uv().xy.sub(0.5).length(), 0.5).mul(step(instanceIndex, params.activeCount));
 
   const geometry = new THREE.PlaneGeometry(1, 1);
   const mesh = new THREE.InstancedMesh(geometry, material, count);
@@ -132,6 +151,7 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     count,
     positionBuffer,
     velocityBuffer,
+    targetBuffer,
     reset,
     stepSimulation,
     dispose
