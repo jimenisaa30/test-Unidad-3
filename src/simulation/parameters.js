@@ -17,6 +17,9 @@ export function createParameters() {
     shapeBlend: uniform(0.0),
     forceScale: uniform(1.0),
     colorShift: uniform(0.0),
+    colorA: uniform(new THREE.Color('#ff2b9a')),
+    colorB: uniform(new THREE.Color('#50e6ff')),
+    colorC: uniform(new THREE.Color('#ffe35c')),
 
     windEnabled: uniform(0.0),
     wind: uniform(new THREE.Vector3(0.0, 0.0, 0.0)),

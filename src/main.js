@@ -89,9 +89,14 @@ async function main() {
 
   const randomPalette = () => {
     const background = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+    const hue = Math.random();
+    params.colorA.value.setHSL(hue, 0.9, 0.58);
+    params.colorB.value.setHSL((hue + 0.33) % 1, 0.9, 0.62);
+    params.colorC.value.setHSL((hue + 0.66) % 1, 0.9, 0.66);
     scene.background.set(background);
     params.colorShift.value = Math.random() * Math.PI * 2;
-    document.documentElement.style.setProperty('--accent', `hsl(${Math.floor(Math.random() * 360)} 95% 62%)`);
+    document.documentElement.style.setProperty('--accent', `#${params.colorA.value.getHexString()}`);
+    document.documentElement.style.setProperty('--accent-cool', `#${params.colorB.value.getHexString()}`);
   };
 
   const updateHud = () => {
@@ -104,7 +109,7 @@ async function main() {
   const setShape = (shape) => {
     params.shapeMode.value = shape;
     params.shapeBlend.value = 0;
-    simulation.setShapeTarget();
+    simulation.setShapeTarget(shape);
     shapeTransitioning = true;
     updateHud();
   };

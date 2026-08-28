@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import {
   Fn,
   If,
+  attribute,
   hash,
   instanceIndex,
   instancedArray,
@@ -20,6 +21,41 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   // Each particle owns position and velocity. The arrays live in GPU storage.
   const positionBuffer = instancedArray(count, 'vec3');
   const velocityBuffer = instancedArray(count, 'vec3');
+
+  // CPU-authored target positions are only a render layer. This keeps the
+  // WebGPU force pass simple and makes shape changes reliable across drivers.
+  const mandalaFrom = new Float32Array(count * 3);
+  const mandalaTo = new Float32Array(count * 3);
+  const random = (i, seed) => {
+    const value = Math.sin(i * 12.9898 + seed * 78.233) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  const fillMandala = (data, mode) => {
+    for (let i = 0; i < count; i++) {
+      const t = i / count;
+      const a = t * Math.PI * 2;
+      const jitter = (random(i, 3) - 0.5) * 0.16;
+      let x; let y;
+      if (mode === 1) {
+        const r = (2.1 + Math.cos(a * 5) * 1.35) * (0.72 + random(i, 5) * 0.28);
+        x = Math.cos(a) * r;
+        y = Math.sin(a) * r;
+      } else if (mode === 2) {
+        x = 3.2 * Math.pow(Math.sin(a), 3);
+        y = (2.1 * Math.cos(a) - Math.cos(2 * a) - 0.45 * Math.cos(3 * a) - 0.22 * Math.cos(4 * a)) * 0.9;
+      } else {
+        const r = 0.25 + t * 4.1;
+        const turn = t * Math.PI * 12;
+        x = Math.cos(turn) * r;
+        y = Math.sin(turn) * r;
+      }
+      data[i * 3] = x + jitter;
+      data[i * 3 + 1] = y + jitter;
+      data[i * 3 + 2] = (random(i, 7) - 0.5) * 0.12;
+    }
+  };
+  fillMandala(mandalaFrom, 0);
+  fillMandala(mandalaTo, 0);
 
   // INITIALIZATION --------------------------------------------------------
   // A compute pass writes the initial state for every particle in parallel.
@@ -93,21 +129,29 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
 
   // RENDER ---------------------------------------------------------------
   // Rendering does not recompute the physics. It consumes the GPU state.
+  const geometry = new THREE.PlaneGeometry(1, 1);
+  const mandalaFromAttribute = new THREE.InstancedBufferAttribute(mandalaFrom, 3);
+  const mandalaToAttribute = new THREE.InstancedBufferAttribute(mandalaTo, 3);
+  geometry.setAttribute('mandalaFrom', mandalaFromAttribute);
+  geometry.setAttribute('mandalaTo', mandalaToAttribute);
+
   const material = new THREE.SpriteNodeMaterial({
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     transparent: true
   });
 
-  material.positionNode = positionBuffer.toAttribute();
+  const physicsPosition = positionBuffer.toAttribute();
+  const shapePosition = mix(attribute('mandalaFrom', 'vec3'), attribute('mandalaTo', 'vec3'), params.shapeBlend);
+  // A little physical motion remains visible inside each mandala.
+  material.positionNode = mix(physicsPosition, shapePosition, 0.78);
   material.scaleNode = params.particleSize;
 
   material.colorNode = Fn(() => {
     const speed = velocityBuffer.toAttribute().length();
     const t = speed.div(params.maxSpeed).clamp(0.0, 1.0);
-    const slow = vec3(1.0, 0.16, 0.60);
-    const fast = vec3(0.31, 0.90, 1.0);
-    return vec4(mix(slow, fast, t), 1.0);
+    const firstBlend = mix(params.colorA, params.colorB, t);
+    return vec4(mix(firstBlend, params.colorC, t.mul(t)), 1.0);
   })();
 
   // Circular sprite mask, avoiding visible square planes.
@@ -116,7 +160,6 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   // WebGPU implementations and was making the whole mandala transparent.
   material.opacityNode = step(uv().xy.sub(0.5).length(), 0.5);
 
-  const geometry = new THREE.PlaneGeometry(1, 1);
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.frustumCulled = false;
   scene.add(mesh);
@@ -139,8 +182,16 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     count,
     positionBuffer,
     velocityBuffer,
-    setShapeTarget() {},
-    commitShapeTarget() {},
+    setShapeTarget(mode) {
+      mandalaFrom.set(mandalaTo);
+      fillMandala(mandalaTo, mode);
+      mandalaFromAttribute.needsUpdate = true;
+      mandalaToAttribute.needsUpdate = true;
+    },
+    commitShapeTarget() {
+      mandalaFrom.set(mandalaTo);
+      mandalaFromAttribute.needsUpdate = true;
+    },
     reset,
     stepSimulation,
     dispose
