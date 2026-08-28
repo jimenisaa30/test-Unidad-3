@@ -21,12 +21,12 @@ export function createParameters() {
     windEnabled: uniform(0.0),
     wind: uniform(new THREE.Vector3(0.0, 0.0, 0.0)),
 
-    radialEnabled: uniform(1.0),
+    radialEnabled: uniform(0.0),
     attractor: uniform(new THREE.Vector3(0.0, 0.0, 0.0)),
     radialStrength: uniform(2.2),
     softening: uniform(0.35),
 
-    vortexEnabled: uniform(1.0),
+    vortexEnabled: uniform(0.0),
     vortexStrength: uniform(1.4),
 
     dragEnabled: uniform(1.0),

@@ -8,9 +8,6 @@ import {
   max,
   mix,
   mod,
-  cos,
-  sin,
-  select,
   step,
   uint,
   uv,
@@ -23,8 +20,6 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   // Each particle owns position and velocity. The arrays live in GPU storage.
   const positionBuffer = instancedArray(count, 'vec3');
   const velocityBuffer = instancedArray(count, 'vec3');
-  const targetFromBuffer = instancedArray(count, 'vec3');
-  const targetToBuffer = instancedArray(count, 'vec3');
 
   // INITIALIZATION --------------------------------------------------------
   // A compute pass writes the initial state for every particle in parallel.
@@ -32,8 +27,6 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     const i = instanceIndex;
     const p = positionBuffer.element(i);
     const v = velocityBuffer.element(i);
-    const targetFrom = targetFromBuffer.element(i);
-    const targetTo = targetToBuffer.element(i);
 
     const r1 = hash(i.add(uint(11)));
     const r2 = hash(i.add(uint(23)));
@@ -42,47 +35,9 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     const r5 = hash(i.add(uint(71)));
     const r6 = hash(i.add(uint(89)));
 
-    const angle = r1.mul(Math.PI * 2.0);
-    const spiralAngle = r1.mul(Math.PI * 12.0);
-    const spiralRadius = r1.mul(4.3);
-    const spiral = vec3(cos(spiralAngle).mul(spiralRadius), sin(spiralAngle).mul(spiralRadius), r2.sub(0.5).mul(0.35));
-    const starRadius = cos(angle.mul(5.0)).mul(1.45).add(3.0).mul(r2.mul(0.55).add(0.45));
-    const star = vec3(cos(angle).mul(starRadius), sin(angle).mul(starRadius), r3.sub(0.5).mul(0.3));
-    const heart = vec3(
-      sin(angle).pow(3.0).mul(3.2),
-      cos(angle).mul(2.1).sub(cos(angle.mul(2.0))).sub(cos(angle.mul(3.0)).mul(0.45)).sub(cos(angle.mul(4.0)).mul(0.22)).mul(0.9),
-      r3.sub(0.5).mul(0.25)
-    );
-    const initialPosition = select(params.shapeMode.equal(2.0), heart, select(params.shapeMode.equal(1.0), star, spiral));
-    p.assign(initialPosition);
-    targetFrom.assign(initialPosition);
-    targetTo.assign(initialPosition);
+    p.assign(vec3(r1, r2, r3).sub(0.5).mul(params.boundsSize.mul(0.45)));
     v.assign(vec3(r4, r5, r6).sub(0.5).mul(params.initialSpeed));
   })().compute(count).setName('Initialize Particles');
-
-  // Writes only the destination mandala; position stays continuous.
-  const writeShapeTarget = Fn(() => {
-    const i = instanceIndex;
-    const r1 = hash(i.add(uint(11)));
-    const r2 = hash(i.add(uint(23)));
-    const r3 = hash(i.add(uint(37)));
-    const angle = r1.mul(Math.PI * 2.0);
-    const spiralAngle = r1.mul(Math.PI * 12.0);
-    const spiralRadius = r1.mul(4.3);
-    const spiral = vec3(cos(spiralAngle).mul(spiralRadius), sin(spiralAngle).mul(spiralRadius), r2.sub(0.5).mul(0.35));
-    const starRadius = cos(angle.mul(5.0)).mul(1.45).add(3.0).mul(r2.mul(0.55).add(0.45));
-    const star = vec3(cos(angle).mul(starRadius), sin(angle).mul(starRadius), r3.sub(0.5).mul(0.3));
-    const heart = vec3(
-      sin(angle).pow(3.0).mul(3.2),
-      cos(angle).mul(2.1).sub(cos(angle.mul(2.0))).sub(cos(angle.mul(3.0)).mul(0.45)).sub(cos(angle.mul(4.0)).mul(0.22)).mul(0.9),
-      r3.sub(0.5).mul(0.25)
-    );
-    targetToBuffer.element(i).assign(select(params.shapeMode.equal(2.0), heart, select(params.shapeMode.equal(1.0), star, spiral)));
-  })().compute(count).setName('Set Mandala Destination');
-
-  const commitShapeTarget = Fn(() => {
-    targetFromBuffer.element(instanceIndex).assign(targetToBuffer.element(instanceIndex));
-  })().compute(count).setName('Commit Mandala Destination');
 
   // UPDATE / COMPUTE SHADER ----------------------------------------------
   // This is the conceptual heart of the project:
@@ -150,14 +105,9 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   material.colorNode = Fn(() => {
     const speed = velocityBuffer.toAttribute().length();
     const t = speed.div(params.maxSpeed).clamp(0.0, 1.0);
-    // Three phase-shifted waves traverse the entire chromatic circle.
-    const hue = instanceIndex.mul(0.0007).add(t.mul(1.6)).add(params.colorShift);
-    const spectrum = vec3(
-      sin(hue).mul(0.5).add(0.5),
-      sin(hue.add(2.094)).mul(0.5).add(0.5),
-      sin(hue.add(4.188)).mul(0.5).add(0.5)
-    );
-    return vec4(spectrum, 1.0);
+    const slow = vec3(1.0, 0.16, 0.60);
+    const fast = vec3(0.31, 0.90, 1.0);
+    return vec4(mix(slow, fast, t), 1.0);
   })();
 
   // Circular sprite mask, avoiding visible square planes.
@@ -189,10 +139,8 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     count,
     positionBuffer,
     velocityBuffer,
-    targetFromBuffer,
-    targetToBuffer,
-    setShapeTarget() { renderer.compute(writeShapeTarget); },
-    commitShapeTarget() { renderer.compute(commitShapeTarget); },
+    setShapeTarget() {},
+    commitShapeTarget() {},
     reset,
     stepSimulation,
     dispose
