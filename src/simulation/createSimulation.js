@@ -160,7 +160,10 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   })();
 
   // Circular sprite mask, avoiding visible square planes.
-  material.opacityNode = step(uv().xy.sub(0.5).length(), 0.5).mul(step(instanceIndex, params.activeCount));
+  // Keep the sprite mask independent from the instance index. Comparing a
+  // uint instance index with a float uniform can compile differently across
+  // WebGPU implementations and was making the whole mandala transparent.
+  material.opacityNode = step(uv().xy.sub(0.5).length(), 0.5);
 
   const geometry = new THREE.PlaneGeometry(1, 1);
   const mesh = new THREE.InstancedMesh(geometry, material, count);
