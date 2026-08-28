@@ -104,6 +104,14 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
       .mul(params.radialEnabled);
     force.addAssign(radialForce.mul(params.forceScale));
 
+    // Mouse interaction: a short, soft attraction is injected whenever the
+    // pointer moves. Unlike the radial mode, it does not need a key held down.
+    const pointerForce = radialDirection
+      .mul(params.pointerStrength)
+      .div(distance.add(0.8))
+      .mul(params.pointerPulse);
+    force.addAssign(pointerForce);
+
     // 3) VORTEX FORCE: tangent to the radial direction around Z.
     const zAxis = vec3(0.0, 0.0, 1.0);
     const tangent = zAxis.cross(radialDirection);
@@ -144,9 +152,9 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   });
 
   const physicsPosition = positionBuffer.toAttribute();
-  const shapePosition = mix(attribute('mandalaFrom', 'vec3'), attribute('mandalaTo', 'vec3'), params.shapeBlend);
+  const shapePosition = mix(attribute('mandalaFrom', 'vec3'), attribute('mandalaTo', 'vec3'), params.shapeBlend).mul(params.shapeScale);
   // A little physical motion remains visible inside each mandala.
-  material.positionNode = mix(physicsPosition, shapePosition, 0.92);
+  material.positionNode = mix(physicsPosition, shapePosition, 0.72);
   material.scaleNode = params.particleSize;
 
   material.colorNode = Fn(() => {

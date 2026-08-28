@@ -132,7 +132,7 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
 
   const actions = document.createElement('div');
   actions.className = 'group';
-  actions.innerHTML = '<h2>Teclado performativo</h2><p>Q gravedad · W repulsión · E atracción · R vórtice · T aire.<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 cantidad · 5 potencia · 8 forma · C paleta.</p>';
+  actions.innerHTML = '<h2>Interacción performativa</h2><p><strong>Mouse:</strong> atrae partículas y expande el mandala.<br><strong>Q/W/E/R/T:</strong> gravedad, repulsión, atracción, vórtice y aire.<br><strong>1–5:</strong> radio, tamaño, amortiguamiento, cantidad y potencia. <strong>8:</strong> forma. <strong>C:</strong> paleta.</p>';
   panel.append(actions);
   button(actions, 'Reset', onReset);
   button(actions, 'Caída libre (gravedad máxima)', () => onGravityDrop?.());

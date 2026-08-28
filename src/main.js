@@ -60,6 +60,8 @@ async function main() {
     if (raycaster.ray.intersectPlane(interactionPlane, hit)) {
       params.attractor.value.copy(hit);
       attractorHelper.position.copy(hit);
+      params.pointerPulse.value = 1;
+      params.shapeScale.value = 1.22;
     }
   });
 
@@ -102,8 +104,8 @@ async function main() {
   const updateHud = () => {
     const form = ['ESPIRAL', 'ESTRELLA', 'CORAZÓN'][params.shapeMode.value];
     hud.innerHTML = mode === 'LAB'
-      ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Mouse: atractor invisible · Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 partículas · 5 potencia · 8 forma · C color · P performance'
-      : `<strong>PERFORMANCE · ${form}</strong><br>Mouse: vórtice invisible · Q/W/E/R/T fuerzas · 1–5 parámetros · 8 forma · C paleta · P interfaz`;
+      ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Mouse: atrae y expande · Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 partículas · 5 potencia · 8 forma · C color · P performance'
+      : `<strong>PERFORMANCE · ${form}</strong><br>Mouse: atrae y expande · Q/W/E/R/T fuerzas · 1–5 parámetros · 8 forma · C paleta · P interfaz`;
   };
 
   const setShape = (shape) => {
@@ -240,6 +242,9 @@ async function main() {
 
   // FRAME LOOP ------------------------------------------------------------
   renderer.setAnimationLoop(() => {
+    // Smoothly return from the mouse expansion after the pointer stops.
+    params.pointerPulse.value *= 0.94;
+    params.shapeScale.value += (1 - params.shapeScale.value) * 0.045;
     if (shapeTransitioning) {
       params.shapeBlend.value = Math.min(1, params.shapeBlend.value + 1 / 150);
       if (params.shapeBlend.value >= 1) {
