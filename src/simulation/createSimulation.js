@@ -34,10 +34,11 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     for (let i = 0; i < count; i++) {
       const t = i / count;
       const a = t * Math.PI * 2;
-      const jitter = (random(i, 3) - 0.5) * 0.16;
+      // A very small variance preserves the readable contour of the mandala.
+      const jitter = (random(i, 3) - 0.5) * 0.018;
       let x; let y;
       if (mode === 1) {
-        const r = (2.1 + Math.cos(a * 5) * 1.35) * (0.72 + random(i, 5) * 0.28);
+        const r = (2.1 + Math.cos(a * 5) * 1.35) * (0.96 + random(i, 5) * 0.04);
         x = Math.cos(a) * r;
         y = Math.sin(a) * r;
       } else if (mode === 2) {
@@ -136,7 +137,8 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   geometry.setAttribute('mandalaTo', mandalaToAttribute);
 
   const material = new THREE.SpriteNodeMaterial({
-    blending: THREE.AdditiveBlending,
+    // Normal blending keeps dense particle paths colorful instead of white.
+    blending: THREE.NormalBlending,
     depthWrite: false,
     transparent: true
   });
@@ -144,7 +146,7 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   const physicsPosition = positionBuffer.toAttribute();
   const shapePosition = mix(attribute('mandalaFrom', 'vec3'), attribute('mandalaTo', 'vec3'), params.shapeBlend);
   // A little physical motion remains visible inside each mandala.
-  material.positionNode = mix(physicsPosition, shapePosition, 0.78);
+  material.positionNode = mix(physicsPosition, shapePosition, 0.92);
   material.scaleNode = params.particleSize;
 
   material.colorNode = Fn(() => {

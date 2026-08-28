@@ -7,10 +7,10 @@ export function createParameters() {
   return {
     dt: uniform(1 / 60),
     timeScale: uniform(1.0),
-    initialSpeed: uniform(0.35),
+    initialSpeed: uniform(0.12),
     maxSpeed: uniform(5.0),
     boundsSize: uniform(10.0),
-    particleSize: uniform(0.035),
+    particleSize: uniform(0.018),
     activeCount: uniform(131072.0),
     shapeMode: uniform(0.0),
     shapeStrength: uniform(2.4),

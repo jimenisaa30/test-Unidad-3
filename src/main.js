@@ -70,9 +70,9 @@ async function main() {
   let shapeTransitioning = false;
   const backgrounds = ['#12051d', '#071b27', '#19102d', '#250b10', '#052028', '#1d1404'];
   const controlLevels = {
-    radius: [0.15, 0.3, 0.55, 0.9, 1.3], size: [0.016, 0.028, 0.04, 0.058, 0.08],
+    radius: [0.15, 0.3, 0.55, 0.9, 1.3], size: [0.008, 0.012, 0.018, 0.026, 0.038],
     drag: [0.03, 0.08, 0.15, 0.25, 0.38], particles: [16384, 32768, 65536, 98304, 131072],
-    power: [0.45, 0.75, 1, 1.5, 2.1]
+    power: [0.18, 0.35, 0.55, 0.8, 1.1]
   };
   const levelIndex = { radius: 2, size: 2, drag: 2, particles: 4, power: 2 };
 
@@ -193,11 +193,11 @@ async function main() {
     // These can be combined: the keyboard becomes an instrument.
     if (event.code === 'KeyQ') {
       params.windEnabled.value = params.windEnabled.value > 0 ? 0 : 1;
-      if (params.windEnabled.value > 0) params.wind.value.set(0, -12.0, 0);
+      if (params.windEnabled.value > 0) params.wind.value.set(0, -1.2, 0);
       panel?.refresh();
     }
-    if (event.code === 'KeyW') { params.radialEnabled.value = 1; params.radialStrength.value = -3.0; panel?.refresh(); }
-    if (event.code === 'KeyE') { params.radialEnabled.value = 1; params.radialStrength.value = 3.0; panel?.refresh(); }
+    if (event.code === 'KeyW') { params.radialEnabled.value = 1; params.radialStrength.value = -1.1; panel?.refresh(); }
+    if (event.code === 'KeyE') { params.radialEnabled.value = 1; params.radialStrength.value = 1.1; panel?.refresh(); }
     if (event.code === 'KeyR') { params.vortexEnabled.value = params.vortexEnabled.value > 0 ? 0 : 1; panel?.refresh(); }
     if (event.code === 'KeyT') { params.dragEnabled.value = params.dragEnabled.value > 0 ? 0 : 1; panel?.refresh(); }
 
