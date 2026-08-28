@@ -7,7 +7,7 @@ import { createParameters } from './simulation/parameters.js';
 import { createSimulation } from './simulation/createSimulation.js';
 import { createLabPanel } from './ui/labPanel.js';
 
-const PARTICLE_COUNT = 131072; // 2^17. The visible amount is controlled live.
+const PARTICLE_COUNT = 131072; // 2^17. Increase only after measuring performance.
 
 async function main() {
   const mount = document.querySelector('#app');
@@ -19,7 +19,7 @@ async function main() {
 
   // THREE.JS MENTAL MODEL: scene + camera + renderer ---------------------
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#12051d');
+  scene.background = new THREE.Color('#050607');
 
   const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.05, 100);
   camera.position.set(0, 0, 11);
@@ -46,74 +46,36 @@ async function main() {
   const axes = new THREE.AxesHelper(1.5);
   scene.add(axes);
 
-  // POINTER -> WORLD POSITION --------------------------------------------
-  // This is a useful camera concept: screen coordinates are not world coords.
-  const pointerNdc = new THREE.Vector2();
-  const raycaster = new THREE.Raycaster();
-  const interactionPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-  const hit = new THREE.Vector3();
-
-  addEventListener('pointermove', (event) => {
-    pointerNdc.x = (event.clientX / innerWidth) * 2 - 1;
-    pointerNdc.y = -(event.clientY / innerHeight) * 2 + 1;
-    raycaster.setFromCamera(pointerNdc, camera);
-    if (raycaster.ray.intersectPlane(interactionPlane, hit)) {
-      params.attractor.value.copy(hit);
-      attractorHelper.position.copy(hit);
-      params.pointerPulse.value = 1;
-      params.shapeScale.value = 1.22;
-    }
-  });
-
   let paused = false;
   let mode = 'LAB';
   let panel;
-  let savedRadialStrength = params.radialStrength.value;
-  let shapeTransitioning = false;
-  const backgrounds = ['#12051d', '#071b27', '#19102d', '#250b10', '#052028', '#1d1404'];
-  const controlLevels = {
-    radius: [0.15, 0.3, 0.55, 0.9, 1.3], size: [0.008, 0.012, 0.018, 0.026, 0.038],
-    drag: [0.03, 0.08, 0.15, 0.25, 0.38], particles: [16384, 32768, 65536, 98304, 131072],
-    power: [0.18, 0.35, 0.55, 0.8, 1.1]
+  let shapeIndex = 0;
+  const levels = {
+    radius: [0.18, 0.35, 0.55, 0.8, 1.1],
+    size: [0.008, 0.012, 0.018, 0.026, 0.038],
+    air: [0.03, 0.08, 0.14, 0.22, 0.32],
+    speed: [1.8, 3, 4.5, 6.5, 8],
+    power: [0.35, 0.6, 0.9, 1.25, 1.65]
   };
-  const levelIndex = { radius: 2, size: 2, drag: 2, particles: 4, power: 2 };
+  const levelIndex = { radius: 2, size: 2, air: 2, speed: 2, power: 2 };
 
   const cycle = (name) => {
-    levelIndex[name] = (levelIndex[name] + 1) % controlLevels[name].length;
-    const value = controlLevels[name][levelIndex[name]];
+    levelIndex[name] = (levelIndex[name] + 1) % levels[name].length;
+    const value = levels[name][levelIndex[name]];
     if (name === 'radius') params.softening.value = value;
     if (name === 'size') params.particleSize.value = value;
-    if (name === 'drag') params.dragCoefficient.value = value;
-    if (name === 'particles') params.activeCount.value = value;
+    if (name === 'air') params.dragCoefficient.value = value;
+    if (name === 'speed') params.maxSpeed.value = value;
     if (name === 'power') params.forceScale.value = value;
     panel?.refresh();
   };
 
   const randomPalette = () => {
-    const background = backgrounds[Math.floor(Math.random() * backgrounds.length)];
     const hue = Math.random();
     params.colorA.value.setHSL(hue, 0.9, 0.58);
-    params.colorB.value.setHSL((hue + 0.33) % 1, 0.9, 0.62);
-    params.colorC.value.setHSL((hue + 0.66) % 1, 0.9, 0.66);
-    scene.background.set(background);
-    params.colorShift.value = Math.random() * Math.PI * 2;
-    document.documentElement.style.setProperty('--accent', `#${params.colorA.value.getHexString()}`);
-    document.documentElement.style.setProperty('--accent-cool', `#${params.colorB.value.getHexString()}`);
-  };
-
-  const updateHud = () => {
-    const form = ['ESPIRAL', 'ESTRELLA', 'CORAZÓN'][params.shapeMode.value];
-    hud.innerHTML = mode === 'LAB'
-      ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Mouse: atrae y expande · Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 partículas · 5 potencia · 8 forma · C color · P performance'
-      : `<strong>PERFORMANCE · ${form}</strong><br>Mouse: atrae y expande · Q/W/E/R/T fuerzas · 1–5 parámetros · 8 forma · C paleta · P interfaz`;
-  };
-
-  const setShape = (shape) => {
-    params.shapeMode.value = shape;
-    params.shapeBlend.value = 0;
-    simulation.setShapeTarget(shape);
-    shapeTransitioning = true;
-    updateHud();
+    params.colorB.value.setHSL((hue + 1 / 3) % 1, 0.9, 0.62);
+    params.colorC.value.setHSL((hue + 2 / 3) % 1, 0.9, 0.66);
+    scene.background.setHSL((hue + 0.58) % 1, 0.52, 0.07);
   };
 
   const applyPreset = (id) => {
@@ -158,10 +120,11 @@ async function main() {
     const lab = mode === 'LAB';
     panel.setVisible(lab);
     axes.visible = lab;
-    // The pointer remains active, but its helper never interrupts the image.
-    attractorHelper.visible = false;
+    attractorHelper.visible = lab;
     orbit.enabled = lab;
-    updateHud();
+    hud.innerHTML = lab
+      ? '<strong>LAB · GEOMETRÍAS EN FUERZA</strong><br>Q gravedad · W repulsión · E atracción · R vórtice · T aire<br>1 radio · 2 tamaño · 3 amortiguamiento · 4 velocidad · 5 potencia · 8 forma · C paleta · Enter reinicia'
+      : '<strong>PERFORMANCE</strong> · Q/W/E/R/T fuerzas · 1–5 parámetros · 8 forma · C paleta · P interfaz';
   };
 
   panel = createLabPanel({
@@ -171,7 +134,7 @@ async function main() {
     onModeChange: () => setMode(mode === 'LAB' ? 'PERFORMANCE' : 'LAB'),
     onPauseChange: () => paused = !paused,
     onGravityDrop: applyGravityDrop,
-    onShape: setShape
+    onShape: (shape) => { shapeIndex = shape; simulation.setShape(shape); }
   });
 
   const hud = document.createElement('div');
@@ -179,56 +142,24 @@ async function main() {
   document.body.append(hud);
   setMode('LAB');
 
-  // BASELINE LIVE INSTRUMENT MAPPING -------------------------------------
-  // Students are expected to redesign this mapping for their own instrument.
   addEventListener('keydown', (event) => {
     if (event.repeat) return;
     if (event.code === 'KeyP') setMode(mode === 'LAB' ? 'PERFORMANCE' : 'LAB');
     if (event.code === 'KeyC') randomPalette();
     if (event.code === 'Digit1') cycle('radius');
     if (event.code === 'Digit2') cycle('size');
-    if (event.code === 'Digit3') cycle('drag');
-    if (event.code === 'Digit4') cycle('particles');
+    if (event.code === 'Digit3') cycle('air');
+    if (event.code === 'Digit4') cycle('speed');
     if (event.code === 'Digit5') cycle('power');
-    if (event.code === 'Digit8') setShape((params.shapeMode.value + 1) % 3);
-
-    // These can be combined: the keyboard becomes an instrument.
-    if (event.code === 'KeyQ') {
-      params.windEnabled.value = params.windEnabled.value > 0 ? 0 : 1;
-      if (params.windEnabled.value > 0) params.wind.value.set(0, -1.2, 0);
-      panel?.refresh();
-    }
-    if (event.code === 'KeyW') { params.radialEnabled.value = 1; params.radialStrength.value = -1.1; panel?.refresh(); }
-    if (event.code === 'KeyE') { params.radialEnabled.value = 1; params.radialStrength.value = 1.1; panel?.refresh(); }
-    if (event.code === 'KeyR') { params.vortexEnabled.value = params.vortexEnabled.value > 0 ? 0 : 1; panel?.refresh(); }
-    if (event.code === 'KeyT') { params.dragEnabled.value = params.dragEnabled.value > 0 ? 0 : 1; panel?.refresh(); }
-
-    if (event.code === 'Space') {
-      event.preventDefault();
-      savedRadialStrength = params.radialStrength.value || 2.0;
-      params.radialEnabled.value = 1;
-      params.radialStrength.value = -savedRadialStrength;
-    }
-
-    // + key: increase drag coefficient
-    if (event.code === 'Equal' || event.code === 'NumpadAdd') {
-      event.preventDefault();
-      params.dragCoefficient.value = Math.min(1, params.dragCoefficient.value + 0.05);
-      panel?.refresh();
-    }
-
-    // - key: decrease drag coefficient
-    if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
-      event.preventDefault();
-      params.dragCoefficient.value = Math.max(0, params.dragCoefficient.value - 0.05);
-      panel?.refresh();
-    }
-
+    if (event.code === 'Digit8') { shapeIndex = (shapeIndex + 1) % 3; simulation.setShape(shapeIndex); }
     if (event.code === 'Enter') simulation.reset();
-  });
 
-  addEventListener('keyup', (event) => {
-    if (event.code === 'Space') params.radialStrength.value = savedRadialStrength;
+    if (event.code === 'KeyQ') { params.windEnabled.value = params.windEnabled.value > 0 ? 0 : 1; params.wind.value.set(0, -1.1, 0); }
+    if (event.code === 'KeyW') { params.radialEnabled.value = 1; params.radialStrength.value = -1.4; }
+    if (event.code === 'KeyE') { params.radialEnabled.value = 1; params.radialStrength.value = 1.4; }
+    if (event.code === 'KeyR') params.vortexEnabled.value = params.vortexEnabled.value > 0 ? 0 : 1;
+    if (event.code === 'KeyT') params.dragEnabled.value = params.dragEnabled.value > 0 ? 0 : 1;
+    panel?.refresh();
   });
 
   addEventListener('resize', () => {
@@ -238,21 +169,9 @@ async function main() {
   });
 
   simulation.reset();
-  updateHud();
 
   // FRAME LOOP ------------------------------------------------------------
   renderer.setAnimationLoop(() => {
-    // Smoothly return from the mouse expansion after the pointer stops.
-    params.pointerPulse.value *= 0.94;
-    params.shapeScale.value += (1 - params.shapeScale.value) * 0.045;
-    if (shapeTransitioning) {
-      params.shapeBlend.value = Math.min(1, params.shapeBlend.value + 1 / 150);
-      if (params.shapeBlend.value >= 1) {
-        simulation.commitShapeTarget();
-        params.shapeBlend.value = 0;
-        shapeTransitioning = false;
-      }
-    }
     if (!paused) simulation.stepSimulation();
     orbit.update();
     renderer.render(scene, camera);
